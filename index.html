@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Adicionar Tarefa</title>
+  <title>Chatbot N8N - Minhas Pendências</title>
   <style>
     body {
       font-family: sans-serif;
@@ -39,16 +39,22 @@
     button:hover {
       background-color: darkgreen;
     }
-    .mensagem-status {
+    .mensagens {
+      text-align: left;
       margin-top: 20px;
-      font-weight: bold;
+      max-height: 300px; /* Limita a altura para que a área de mensagens possa rolar */
+      overflow-y: auto; /* Adiciona barra de rolagem se o conteúdo exceder */
+      border: 1px solid #eee;
+      padding: 10px;
+      border-radius: 5px;
+      background-color: #fcfcfc;
+    }
+    .mensagens div {
+      margin-bottom: 8px;
+      line-height: 1.4;
+    }
+    .mensagens strong {
       color: #333;
-    }
-    .mensagem-sucesso {
-      color: green;
-    }
-    .mensagem-erro {
-      color: red;
     }
   </style>
 </head>
@@ -56,67 +62,81 @@
 
   <div class="container">
     <img src="agendas.png" alt="ANOTE" height="80">
-    <h2> ADICIONAR NOVA TAREFA </h2>
-    <input type="text" id="task-input" placeholder="Digite sua tarefa" aria-label="Digite sua tarefa" />
-    <button id="send-button">Adicionar</button>
+    <h2> MINHAS PENDÊNCIAS (N8N Chat) </h2>
+    <input type="text" id="user-input" placeholder="Digite sua mensagem ou pendência" aria-label="Digite sua mensagem ou pendência" />
+    <button id="send-button">Enviar</button>
 
-    <div class="mensagem-status" id="status-message" aria-live="polite"></div>
+    <div class="mensagens" id="chat-messages" role="log" aria-live="polite"></div>
   </div>
 
   <script>
     document.addEventListener('DOMContentLoaded', () => {
-      const taskInput = document.getElementById('task-input');
+      const userInput = document.getElementById('user-input');
       const sendButton = document.getElementById('send-button');
-      const statusMessage = document.getElementById('status-message');
+      const chatMessages = document.getElementById('chat-messages');
 
-      // Função para exibir mensagens de status
-      function showStatus(message, type = 'info') {
-        statusMessage.textContent = message;
-        statusMessage.className = `mensagem-status mensagem-${type}`;
+      // URL do seu webhook do N8N Chat Trigger
+      const N8N_WEBHOOK_URL = "https://hook.jesue.site/webhook/4e102f5e-e86e-4731-8aa8-9913de5fecc8/chat";
+
+      // Função para adicionar mensagens ao chat
+      function addMessage(sender, text) {
+        const div = document.createElement('div');
+        div.innerHTML = `<strong>${sender}:</strong> ${text}`;
+        chatMessages.appendChild(div);
+        chatMessages.scrollTop = chatMessages.scrollHeight; // Rola para o final
       }
 
-      // Função para enviar a tarefa para o webhook
-      async function sendTask() {
-        const task = taskInput.value.trim();
-        if (!task) {
-          showStatus("Por favor, digite uma tarefa.", "erro");
-          return;
-        }
+      // Função para enviar a mensagem para o N8N Chat Trigger
+      async function sendMessage() {
+        const message = userInput.value.trim();
+        if (!message) return;
 
-        showStatus("Enviando tarefa...", "info");
-        taskInput.value = ''; // Limpa o campo de entrada
-        taskInput.focus(); // Retorna o foco para o campo
+        addMessage("Você", message); // Exibe a mensagem do usuário
+        userInput.value = ''; // Limpa o campo de entrada
+        userInput.focus(); // Foca novamente no campo
 
         try {
-          // Faz a requisição POST para o seu webhook
-          const resposta = await fetch("https://hook.jesue.site/webhook/6f0794d9-a0e2-4cba-8400-f0adee7cacea/chat", {
+          const response = await fetch(N8N_WEBHOOK_URL, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
-            // O corpo da requisição agora contém apenas a 'tarefa'
-            body: JSON.stringify({ tarefa: task })
+            headers: {
+              "Content-Type": "application/json"
+            },
+            // O N8N Chat Trigger geralmente espera um objeto com a chave "text" ou "message"
+            body: JSON.stringify({
+              text: message, // Usamos 'text' para o Chat Trigger
+              // Você pode adicionar outros dados se seu workflow N8N precisar, ex:
+              // sessionId: "web_chat_user_123",
+              // from: "web_frontend"
+            })
           });
 
-          if (!resposta.ok) {
-            throw new Error(`Erro HTTP! Status: ${resposta.status} - ${resposta.statusText}`);
+          if (!response.ok) {
+            const errorText = await response.text(); // Tenta ler a resposta de erro
+            throw new Error(`Erro HTTP! Status: ${response.status} - ${response.statusText}. Resposta do servidor: ${errorText}`);
           }
 
-          const json = await resposta.json();
-          // Exibe a resposta do webhook, se houver
-          showStatus(json.output || "Tarefa adicionada com sucesso!", "sucesso");
+          const jsonResponse = await response.json();
+
+          // O N8N Chat Trigger pode retornar uma resposta no formato de chat.
+          // Por padrão, se você não configura uma resposta específica no N8N,
+          // ele pode retornar o input que recebeu ou um JSON vazio.
+          // Você precisará configurar a resposta final do seu workflow N8N
+          // para enviar uma mensagem de volta no formato que você espera.
+          // Ex: um nó "Respond to Webhook" no N8N retornando { "output": "Sua resposta aqui" }
+          
+          addMessage("Bot", jsonResponse.output || jsonResponse.text || "Workflow N8N acionado. Nenhuma resposta específica retornada.");
 
         } catch (e) {
-          console.error("Erro ao conectar com o webhook:", e);
-          showStatus("Erro ao adicionar tarefa. Tente novamente mais tarde.", "erro");
+          console.error("Erro ao comunicar com o N8N Webhook:", e);
+          addMessage("Bot", `Erro na conexão com o N8N. Detalhes: ${e.message}.`);
         }
       }
 
-      // Listener para o botão "Adicionar"
-      sendButton.addEventListener('click', sendTask);
-
-      // Listener para a tecla "Enter" no campo de texto
-      taskInput.addEventListener('keypress', (e) => {
+      // Event Listeners
+      sendButton.addEventListener('click', sendMessage);
+      userInput.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') {
-          sendTask();
+          sendMessage();
         }
       });
     });
