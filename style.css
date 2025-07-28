@@ -1,0 +1,46 @@
+body {
+  font-family: sans-serif;
+  text-align: center;
+  background: #f4f4f4;
+  margin: 0;
+  padding-top: 50px;
+}
+.container {
+  background: #fff;
+  max-width: 500px;
+  margin: auto;
+  padding: 30px;
+  border-radius: 10px;
+  box-shadow: 0 0 15px rgba(0,0,0,0.1);
+}
+input {
+  width: 70%;
+  padding: 10px;
+  margin-right: 10px;
+}
+button {
+  padding: 10px 20px;
+  background-color: green;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer; /* Adicionado para indicar que é clicável */
+}
+button:hover {
+  background-color: darkgreen; /* Efeito ao passar o mouse */
+}
+.mensagens {
+  text-align: left;
+  margin-top: 20px;
+  max-height: 300px; /* Limita a altura para que a área de mensagens possa rolar */
+  overflow-y: auto; /* Adiciona barra de rolagem se o conteúdo exceder */
+  border: 1px solid #eee;
+  padding: 10px;
+  border-radius: 5px;
+}
+.mensagens div {
+  margin-bottom: 8px;
+}
+.mensagens strong {
+  color: #333;
+}
