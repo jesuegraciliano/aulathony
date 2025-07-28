@@ -3,21 +3,124 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Chatbot Minhas Pendências</title>
-  <link rel="stylesheet" href="style.css">
+  <title>Adicionar Tarefa</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      text-align: center;
+      background: #f4f4f4;
+      margin: 0;
+      padding-top: 50px;
+    }
+    .container {
+      background: #fff;
+      max-width: 500px;
+      margin: auto;
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 0 15px rgba(0,0,0,0.1);
+    }
+    input {
+      width: 70%;
+      padding: 10px;
+      margin-right: 10px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+    }
+    button {
+      padding: 10px 20px;
+      background-color: green;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+    button:hover {
+      background-color: darkgreen;
+    }
+    .mensagem-status {
+      margin-top: 20px;
+      font-weight: bold;
+      color: #333;
+    }
+    .mensagem-sucesso {
+      color: green;
+    }
+    .mensagem-erro {
+      color: red;
+    }
+  </style>
 </head>
 <body>
 
   <div class="container">
     <img src="agendas.png" alt="ANOTE" height="80">
-    <h2> MINHAS PENDÊNCIAS </h2>
-    <input type="text" id="user-input" placeholder="Digite sua pendência" />
-    <button id="send-button">Enviar</button>
+    <h2> ADICIONAR NOVA TAREFA </h2>
+    <input type="text" id="task-input" placeholder="Digite sua tarefa" aria-label="Digite sua tarefa" />
+    <button id="send-button">Adicionar</button>
 
-    <div class="mensagens" id="chat-messages"></div>
+    <div class="mensagem-status" id="status-message" aria-live="polite"></div>
   </div>
 
-  <script src="script.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const taskInput = document.getElementById('task-input');
+      const sendButton = document.getElementById('send-button');
+      const statusMessage = document.getElementById('status-message');
+
+      // Função para exibir mensagens de status
+      function showStatus(message, type = 'info') {
+        statusMessage.textContent = message;
+        statusMessage.className = `mensagem-status mensagem-${type}`;
+      }
+
+      // Função para enviar a tarefa para o webhook
+      async function sendTask() {
+        const task = taskInput.value.trim();
+        if (!task) {
+          showStatus("Por favor, digite uma tarefa.", "erro");
+          return;
+        }
+
+        showStatus("Enviando tarefa...", "info");
+        taskInput.value = ''; // Limpa o campo de entrada
+        taskInput.focus(); // Retorna o foco para o campo
+
+        try {
+          // Faz a requisição POST para o seu webhook
+          const resposta = await fetch("https://hook.jesue.site/webhook/6f0794d9-a0e2-4cba-8400-f0adee7cacea/chat", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            // O corpo da requisição agora contém apenas a 'tarefa'
+            body: JSON.stringify({ tarefa: task })
+          });
+
+          if (!resposta.ok) {
+            throw new Error(`Erro HTTP! Status: ${resposta.status} - ${resposta.statusText}`);
+          }
+
+          const json = await resposta.json();
+          // Exibe a resposta do webhook, se houver
+          showStatus(json.output || "Tarefa adicionada com sucesso!", "sucesso");
+
+        } catch (e) {
+          console.error("Erro ao conectar com o webhook:", e);
+          showStatus("Erro ao adicionar tarefa. Tente novamente mais tarde.", "erro");
+        }
+      }
+
+      // Listener para o botão "Adicionar"
+      sendButton.addEventListener('click', sendTask);
+
+      // Listener para a tecla "Enter" no campo de texto
+      taskInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+          sendTask();
+        }
+      });
+    });
+  </script>
 
 </body>
 </html>
